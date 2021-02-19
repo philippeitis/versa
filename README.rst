@@ -28,6 +28,8 @@ Data
 ----
 For Omniglot, miniImagenet, and ShapeNet data, see the usage instructions in ``data/save_omniglot_data.py``, ``data/save_mini_imagenet_data.py``, and ``data/save_shapenet_data.py``, respectively.
 
+Note that users of the ShapeNet data must abide by the `ShapeNet Terms of Use <https://shapenet.org/terms>`_.
+
 Usage
 -----
 
