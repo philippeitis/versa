@@ -30,7 +30,7 @@ Usage instructions:
 """
 
 import os
-import sys
+
 from PIL import Image
 import numpy as np
 

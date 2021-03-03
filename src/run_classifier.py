@@ -31,13 +31,12 @@ python run_classifier.py --dataset miniImageNet --shot 1 --tasks_per_batch 8 --i
 
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+import argparse
+import logging
 
 import numpy as np
 import tensorflow as tf
-import argparse
+
 from features import extract_features_omniglot, extract_features_mini_imagenet
 from inference import infer_classifier
 from utilities import sample_normal, multinoulli_log_density, print_and_log, get_log_files
@@ -78,7 +77,7 @@ def parse_command_line():
                         help="Dropout keep probability.")
     parser.add_argument("--test_model_path", "-m", default=None,
                         help="Model to load and test.")
-    parser.add_argument("--print_freq", type=int, default=200, 
+    parser.add_argument("--print_freq", type=int, default=200,
                         help="Frequency of summary results (in iterations).")
     args = parser.parse_args()
 
@@ -88,11 +87,15 @@ def parse_command_line():
     if args.test_way is None:
         args.test_way = args.way
 
+    if args.mode == "test" and not args.test_model_path:
+        parser.error("--test was selected but no test model path was provided.")
+
     return args
 
-    
-def main(unused_argv):
-    tf.logging.set_verbosity(tf.logging.ERROR)
+
+def main(_unused_argv):
+    logger = tf.get_logger()
+    logger.setLevel(logging.ERROR)
 
     args = parse_command_line()
 
@@ -104,9 +107,10 @@ def main(unused_argv):
     data = get_data(args.dataset)
 
     # set the feature extractor based on the dataset
-    feature_extractor_fn = extract_features_mini_imagenet
     if args.dataset == "Omniglot":
         feature_extractor_fn = extract_features_omniglot
+    else:
+        feature_extractor_fn = extract_features_mini_imagenet
 
     # evaluation samples
     eval_samples_train = 15
@@ -117,33 +121,33 @@ def main(unused_argv):
     test_args_per_batch = 1  # always use a batch size of 1 for testing
 
     # tf placeholders
-    train_images = tf.placeholder(tf.float32, [None,  # tasks per batch
-                                               None,  # shot
-                                               data.get_image_height(),
-                                               data.get_image_width(),
-                                               data.get_image_channels()],
-                                  name='train_images')
-    test_images = tf.placeholder(tf.float32, [None,  # tasks per batch
-                                              None,  # num test images
-                                              data.get_image_height(),
-                                              data.get_image_width(),
-                                              data.get_image_channels()],
-                                 name='test_images')
-    train_labels = tf.placeholder(tf.float32, [None,  # tasks per batch
-                                               None,  # shot
-                                               args.way],
-                                  name='train_labels')
-    test_labels = tf.placeholder(tf.float32, [None,  # tasks per batch
-                                              None,  # num test images
-                                              args.way],
-                                 name='test_labels')
-    dropout_keep_prob = tf.placeholder(tf.float32, [], name='dropout_keep_prob')
+    train_images = tf.compat.v1.placeholder(tf.float32, [None,  # tasks per batch
+                                                         None,  # shot
+                                                         data.get_image_height(),
+                                                         data.get_image_width(),
+                                                         data.get_image_channels()],
+                                            name='train_images')
+    test_images = tf.compat.v1.placeholder(tf.float32, [None,  # tasks per batch
+                                                        None,  # num test images
+                                                        data.get_image_height(),
+                                                        data.get_image_width(),
+                                                        data.get_image_channels()],
+                                           name='test_images')
+    train_labels = tf.compat.v1.placeholder(tf.float32, [None,  # tasks per batch
+                                                         None,  # shot
+                                                         args.way],
+                                            name='train_labels')
+    test_labels = tf.compat.v1.placeholder(tf.float32, [None,  # tasks per batch
+                                                        None,  # num test images
+                                                        args.way],
+                                           name='test_labels')
+    dropout_keep_prob = tf.compat.v1.placeholder(tf.float32, [], name='dropout_keep_prob')
     L = tf.constant(args.samples, dtype=tf.float32, name="num_samples")
 
     # Relevant computations for a single task
     def evaluate_task(inputs):
         train_inputs, train_outputs, test_inputs, test_outputs = inputs
-        with tf.variable_scope('shared_features'):
+        with tf.compat.v1.variable_scope('shared_features'):
             # extract features from train and test data
             features_train = feature_extractor_fn(images=train_inputs,
                                                   output_size=args.d_theta,
@@ -154,23 +158,27 @@ def main(unused_argv):
                                                  use_batch_norm=True,
                                                  dropout_keep_prob=dropout_keep_prob)
         # Infer classification layer from q
-        with tf.variable_scope('classifier'):
+        with tf.compat.v1.variable_scope('classifier'):
             classifier = infer_classifier(features_train, train_outputs, args.d_theta, args.way)
 
         # Local reparameterization trick
         # Compute parameters of q distribution over logits
         weight_mean, bias_mean = classifier['weight_mean'], classifier['bias_mean']
         weight_log_variance, bias_log_variance = classifier['weight_log_variance'], classifier['bias_log_variance']
+
         logits_mean_test = tf.matmul(features_test, weight_mean) + bias_mean
-        logits_log_var_test =\
-            tf.log(tf.matmul(features_test ** 2, tf.exp(weight_log_variance)) + tf.exp(bias_log_variance))
+        logits_log_var_test = \
+            tf.math.log(tf.matmul(features_test ** 2, tf.exp(weight_log_variance)) + tf.exp(bias_log_variance))
         logits_sample_test = sample_normal(logits_mean_test, logits_log_var_test, args.samples)
+
         test_labels_tiled = tf.tile(tf.expand_dims(test_outputs, 0), [args.samples, 1, 1])
         task_log_py = multinoulli_log_density(inputs=test_labels_tiled, logits=logits_sample_test)
-        averaged_predictions = tf.reduce_logsumexp(logits_sample_test, axis=0) - tf.log(L)
+
+        averaged_predictions = tf.reduce_logsumexp(logits_sample_test, axis=0) - tf.math.log(L)
+
         task_accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(test_outputs, axis=-1),
                                                         tf.argmax(averaged_predictions, axis=-1)), tf.float32))
-        task_score = tf.reduce_logsumexp(task_log_py, axis=0) - tf.log(L)
+        task_score = tf.reduce_logsumexp(task_log_py, axis=0) - tf.math.log(L)
         task_loss = -tf.reduce_mean(task_score, axis=0)
 
         return [task_loss, task_accuracy]
@@ -186,19 +194,20 @@ def main(unused_argv):
     loss = tf.reduce_mean(batch_losses)
     accuracy = tf.reduce_mean(batch_accuracies)
 
-    with tf.Session() as sess:
-        saver = tf.train.Saver()
+    gpu_options = tf.compat.v1.GPUOptions(allow_growth=True)
+    with tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_options)) as sess:
+        saver = tf.compat.v1.train.Saver()
 
         if args.mode == 'train' or args.mode == 'train_test':
             # train the model
-            optimizer = tf.train.AdamOptimizer(learning_rate=args.learning_rate)
+            optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=args.learning_rate)
             train_step = optimizer.minimize(loss)
-    
+
             validation_batches = 200
             iteration = 0
             best_validation_accuracy = 0.0
             train_iteration_accuracy = []
-            sess.run(tf.global_variables_initializer())
+            sess.run(tf.compat.v1.global_variables_initializer())
             # Main training loop
             while iteration < args.iterations:
                 train_inputs, test_inputs, train_outputs, test_outputs = \
@@ -216,9 +225,11 @@ def main(unused_argv):
                     while validation_iteration < validation_batches:
                         train_inputs, test_inputs, train_outputs, test_outputs = \
                             data.get_batch('validation', args.tasks_per_batch, args.shot, args.way, eval_samples_test)
-                        feed_dict = {train_images: train_inputs, test_images: test_inputs,
-                                     train_labels: train_outputs, test_labels: test_outputs,
-                                     dropout_keep_prob: 1.0}
+                        feed_dict = {
+                            train_images: train_inputs, test_images: test_inputs,
+                            train_labels: train_outputs, test_labels: test_outputs,
+                            dropout_keep_prob: 1.0
+                        }
                         iteration_accuracy = sess.run(accuracy, feed_dict)
                         validation_iteration_accuracy.append(iteration_accuracy)
                         validation_iteration += 1
@@ -231,7 +242,7 @@ def main(unused_argv):
                         saver.save(sess=sess, save_path=checkpoint_path_validation)
 
                     print_and_log(logfile, 'Iteration: {}, Loss: {:5.3f}, Train-Acc: {:5.3f}, Val-Acc: {:5.3f}'
-                        .format(iteration, iteration_loss, train_accuracy, validation_accuracy))
+                                  .format(iteration, iteration_loss, train_accuracy, validation_accuracy))
                     train_iteration_accuracy = []
 
                 iteration += 1
@@ -240,7 +251,7 @@ def main(unused_argv):
             print_and_log(logfile, 'Fully-trained model saved to: {}'.format(checkpoint_path_final))
             print_and_log(logfile, 'Best validation accuracy: {:5.3f}'.format(best_validation_accuracy))
             print_and_log(logfile, 'Best validation model saved to: {}'.format(checkpoint_path_validation))
-        
+
         def test_model(model_path, load=True):
             if load:
                 saver.restore(sess, save_path=model_path)
@@ -248,8 +259,8 @@ def main(unused_argv):
             test_iteration_accuracy = []
             while test_iteration < test_iterations:
                 train_inputs, test_inputs, train_outputs, test_outputs = \
-                                        data.get_batch('test', test_args_per_batch, args.test_shot, args.test_way,
-                                                       eval_samples_test)
+                    data.get_batch('test', test_args_per_batch, args.test_shot, args.test_way,
+                                   eval_samples_test)
                 feedDict = {train_images: train_inputs, test_images: test_inputs,
                             train_labels: train_outputs, test_labels: test_outputs,
                             dropout_keep_prob: 1.0}
@@ -279,4 +290,5 @@ def main(unused_argv):
 
 
 if __name__ == "__main__":
-    tf.app.run()
+    tf.compat.v1.disable_eager_execution()
+    tf.compat.v1.app.run()

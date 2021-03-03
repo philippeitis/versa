@@ -30,13 +30,13 @@ Usage instructions:
 5. The result should be that three .pkl files (mini_imagenet_train.pkl, mini_imagenet_test.pkl, mini_imagenet_val.pkl,)
    are created in the data directory.
 """
-
-from __future__ import print_function
-import numpy as np
+import sys
 import csv
 import glob
 import os
 import pickle
+
+import numpy as np
 from PIL import Image
 
 def process_images(base_path):

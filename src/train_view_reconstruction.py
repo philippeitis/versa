@@ -12,12 +12,12 @@ where <date-time> is the specific time stamped folder where train_view_reconstru
 
 """
 
-from __future__ import absolute_import
-from __future__ import division
+import argparse
+import logging
 
 import numpy as np
 import tensorflow as tf
-import argparse
+
 from features import extract_features_shapenet, generate_views
 from inference import shapenet_inference
 from utilities import print_and_log, get_log_files, gaussian_log_density
@@ -38,7 +38,8 @@ def parse_command_line():
     parser.add_argument("--learning_rate", "-lr", type=float, default=1e-4, help="Learning rate.")
     parser.add_argument("--iterations", type=int, default=500000, help="Number of training iterations.")
     parser.add_argument("--checkpoint_dir", "-c", default='./checkpoint', help="Directory to save trained models.")
-    parser.add_argument("--random_shot", default=False, action="store_true", help="Randomize the shot between 1 and shot.")
+    parser.add_argument("--random_shot", default=False, action="store_true",
+                        help="Randomize the shot between 1 and shot.")
     parser.add_argument("--print_freq", type=int, default=200, help="Frequency of summary results (in iterations).")
 
     args = parser.parse_args()
@@ -46,8 +47,9 @@ def parse_command_line():
     return args
 
 
-def main(unused_argv):
-    tf.logging.set_verbosity(tf.logging.ERROR)
+def main(_unused_argv):
+    logger = tf.get_logger()
+    logger.setLevel(logging.ERROR)
 
     args = parse_command_line()
 
@@ -59,27 +61,31 @@ def main(unused_argv):
     data = get_data("shapenet")
 
     # tf placeholders
-    batch_train_images = tf.placeholder(tf.float32, [None,  # tasks per batch
+    batch_train_images = tf.compat.v1.placeholder(tf.float32, [None,  # tasks per batch
                                                      None,  # shot
                                                      data.get_image_height(),
                                                      data.get_image_width(),
-                                                     data.get_image_channels()], name='train_images')
-    batch_test_images = tf.placeholder(tf.float32, [None,  # tasks per batch
+                                                     data.get_image_channels()], name='train_images'
+                                                  )
+    batch_test_images = tf.compat.v1.placeholder(tf.float32, [None,  # tasks per batch
                                                     None,  # num test images
                                                     data.get_image_height(),
                                                     data.get_image_width(),
-                                                    data.get_image_channels()], name='test_images')
-    batch_train_angles = tf.placeholder(tf.float32, [None,  # tasks per batch
+                                                    data.get_image_channels()], name='test_images'
+                                                 )
+    batch_train_angles = tf.compat.v1.placeholder(tf.float32, [None,  # tasks per batch
                                                      None,  # shot
-                                                     data.get_angle_dimensionality()], name='train_angles')
-    batch_test_angles = tf.placeholder(tf.float32, [None,  # tasks per batch
+                                                     data.get_angle_dimensionality()], name='train_angles'
+                                                  )
+    batch_test_angles = tf.compat.v1.placeholder(tf.float32, [None,  # tasks per batch
                                                     None,  # num test angles
-                                                    data.get_angle_dimensionality()], name='test_angles')
+                                                    data.get_angle_dimensionality()], name='test_angles'
+                                                 )
 
     def evaluate_task(inputs):
         train_images, train_angles, test_images, test_angles = inputs
         inference_features_train = extract_features_shapenet(images=train_images, output_size=args.d_theta,
-                                                    use_batch_norm=False, dropout_keep_prob=1.0)
+                                                             use_batch_norm=False, dropout_keep_prob=1.0)
         adaptation_params = shapenet_inference(inference_features_train, train_angles, args.d_theta,
                                                args.d_psi, args.samples)
         test_batch_size = tf.shape(test_images)[0]
@@ -115,22 +121,22 @@ def main(unused_argv):
     loss = tf.reduce_mean(batch_losses)
     log_likelihood = tf.reduce_mean(batch_log_densities)
 
-    optimizer = tf.train.AdamOptimizer(learning_rate=args.learning_rate)
+    optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=args.learning_rate)
     gvs = optimizer.compute_gradients(loss)
     gvs = [(tf.clip_by_value(grad, -1, 1), var) for grad, var in gvs if grad is not None]
     train_step = optimizer.apply_gradients(gvs)
 
-    with tf.Session() as sess:
-        saver = tf.train.Saver()
+    with tf.compat.v1.Session() as sess:
+        saver = tf.compat.v1.train.Saver()
         # train the model
         validation_batches = 100
         iteration = 0
         best_validation_loss = 5e10
         train_iteration_loss = []
-        sess.run(tf.global_variables_initializer())
+        sess.run(tf.compat.v1.global_variables_initializer())
         while iteration < args.iterations:
             train_shot = args.shot
-            if (args.random_shot):
+            if args.random_shot:
                 train_shot = np.random.randint(low=1, high=(args.shot + 1))
             train_inputs, test_inputs, train_outputs, test_outputs = \
                 data.get_batch(source='train', tasks_per_batch=args.tasks_per_batch, shot=train_shot)
@@ -172,4 +178,4 @@ def main(unused_argv):
 
 
 if __name__ == "__main__":
-    tf.app.run()
+    tf.compat.v1.app.run()

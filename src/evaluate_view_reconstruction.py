@@ -12,21 +12,22 @@ where <date-time> is the specific time stamped folder where train_view_reconstru
 
 """
 
-from __future__ import absolute_import
-from __future__ import division
+import math
+import os
+import argparse
+import logging
 
 import numpy as np
 import tensorflow as tf
-import argparse
+
+from skimage.measure import compare_mse as mse
+from skimage.measure import compare_nrmse as nrmse
+from skimage.measure import compare_ssim as ssim
+
 from features import extract_features_shapenet, generate_views
 from inference import shapenet_inference
 from utilities import plot_image_strips, save_images_to_folder, gaussian_log_density
 from data import get_data
-from skimage.measure import compare_mse as mse
-from skimage.measure import compare_nrmse as nrmse
-from skimage.measure import compare_ssim as ssim
-import math
-import os
 
 
 def compute_image_quality_metrics(ground_truth_images, ground_truth_angles, generated_images, generated_angles):
@@ -61,8 +62,9 @@ def parse_command_line():
     return args
 
 
-def main(unused_argv):
-    tf.logging.set_verbosity(tf.logging.ERROR)
+def main(_unused_argv):
+    logger = tf.get_logger()
+    logger.setLevel(logging.ERROR)
 
     args = parse_command_line()
 
@@ -84,24 +86,24 @@ def main(unused_argv):
     all_angles = np.tile(np.expand_dims(angles_to_generate, 0), (test_tasks_per_batch, 1, 1))
     while test_iteration < args.iterations:
         # tf placeholders
-        batch_train_images = tf.placeholder(tf.float32,
+        batch_train_images = tf.compat.v1.placeholder(tf.float32,
                                             [None,  # tasks per batch
                                              None,  # shot
                                              data.get_image_height(),
                                              data.get_image_width(),
                                              data.get_image_channels()], name='train_images')
-        batch_test_images = tf.placeholder(tf.float32, [None,  # tasks per batch
+        batch_test_images = tf.compat.v1.placeholder(tf.float32, [None,  # tasks per batch
                                                         None,  # num test images
                                                         data.get_image_height(),
                                                         data.get_image_width(),
                                                         data.get_image_channels()], name='test_images')
-        batch_train_angles = tf.placeholder(tf.float32, [None,  # tasks per batch
+        batch_train_angles = tf.compat.v1.placeholder(tf.float32, [None,  # tasks per batch
                                                          None,  # shot
                                                          data.get_angle_dimensionality()], name='train_angles')
-        batch_test_angles = tf.placeholder(tf.float32, [None,  # tasks per batch
+        batch_test_angles = tf.compat.v1.placeholder(tf.float32, [None,  # tasks per batch
                                                         None,  # num test angles
                                                         data.get_angle_dimensionality()], name='test_angles')
-        batch_all_angles = tf.placeholder(tf.float32, [None,  # tasks per batch
+        batch_all_angles = tf.compat.v1.placeholder(tf.float32, [None,  # tasks per batch
                                                        None,  # num test angles + num train angles
                                                        data.get_angle_dimensionality()], name='all_angles')
 
@@ -144,8 +146,8 @@ def main(unused_argv):
 
         batch_log_densities, generated_images = batch_output
 
-        saver = tf.train.Saver()
-        with tf.Session() as sess:
+        saver = tf.compat.v1.train.Saver()
+        with tf.compat.v1.Session() as sess:
             saver.restore(sess, save_path=args.model_path)
             train_inputs, test_inputs, train_outputs, test_outputs = \
                 data.get_batch('test', test_tasks_per_batch, test_shot)
@@ -175,7 +177,7 @@ def main(unused_argv):
             save_images_to_folder(test_generated_images[0], all_angles[0], all_gt_images[0], all_gt_angles[0],
                                   output_folder)
 
-        tf.reset_default_graph()
+        tf.compat.v1.reset_default_graph()
         test_iteration += 1
 
     model_bpp = np.array(task_bits_per_pixel).mean()
@@ -198,4 +200,4 @@ def main(unused_argv):
 
 
 if __name__ == "__main__":
-    tf.app.run()
+    tf.compat.v1.app.run()

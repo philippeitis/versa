@@ -1,4 +1,5 @@
 import tensorflow as tf
+
 from utilities import dense_layer, sample_normal
 
 
@@ -28,7 +29,6 @@ def infer_classifier(features, labels, d_theta, num_classes):
     :        log variances for weights and biases).
     """
 
-    classifier = {}
     class_weight_means = []
     class_weight_logvars = []
     class_bias_means = []
@@ -36,7 +36,7 @@ def infer_classifier(features, labels, d_theta, num_classes):
     for c in range(num_classes):
         class_mask = tf.equal(tf.argmax(labels, 1), c)
         class_features = tf.boolean_mask(features, class_mask)
-        
+
         # Pool across dimensions
         nu = tf.expand_dims(tf.reduce_mean(class_features, axis=0), axis=0)
 
@@ -45,11 +45,13 @@ def infer_classifier(features, labels, d_theta, num_classes):
         class_bias_means.append(inference_block(nu, d_theta, 1, 'bias_mean'))
         class_bias_logvars.append(inference_block(nu, d_theta, 1, 'bias_log_variance'))
 
-    classifier['weight_mean'] = tf.transpose(tf.concat(class_weight_means, axis=0))
-    classifier['bias_mean'] = tf.reshape(tf.concat(class_bias_means, axis=1), [num_classes, ])
-    classifier['weight_log_variance'] = tf.transpose(tf.concat(class_weight_logvars, axis=0))
-    classifier['bias_log_variance'] = tf.reshape(tf.concat(class_bias_logvars, axis=1), [num_classes, ])
-    
+    classifier = {
+        'weight_mean': tf.transpose(tf.concat(class_weight_means, axis=0)),
+        'bias_mean': tf.reshape(tf.concat(class_bias_means, axis=1), [num_classes, ]),
+        'weight_log_variance': tf.transpose(tf.concat(class_weight_logvars, axis=0)),
+        'bias_log_variance': tf.reshape(tf.concat(class_bias_logvars, axis=1), [num_classes, ])
+    }
+
     return classifier
 
 
@@ -75,10 +77,11 @@ def shapenet_inference(image_features, angles, d_theta, d_psi, num_samples):
     post_processed = _post_process(nu, d_psi)
 
     # Compute means and log variances for the parameter
-    psi = {}
-    psi['mu'] = dense_layer(inputs=post_processed, output_size=d_psi, activation=None, use_bias=True, name='psi_mean')
-    psi['log_variance'] = \
-        dense_layer(inputs=post_processed, output_size=d_psi, activation=None, use_bias=True, name='psi_log_var')
+    psi = {
+        'mu': dense_layer(inputs=post_processed, output_size=d_psi, activation=None, use_bias=True, name='psi_mean'),
+        'log_variance': dense_layer(inputs=post_processed, output_size=d_psi, activation=None, use_bias=True,
+                                    name='psi_log_var')
+    }
 
     psi['psi_samples'] = sample_normal(psi['mu'], psi['log_variance'], num_samples)
     return psi

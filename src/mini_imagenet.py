@@ -1,7 +1,7 @@
 import os
-import sys
-import numpy as np
 import pickle
+
+import numpy as np
 
 
 def onehottify_2d_array(a):
@@ -74,7 +74,7 @@ class MiniImageNetData(object):
 
         # Set up empty arrays
         train_images = np.empty((tasks_per_batch, way, shot, self.image_height, self.image_width,
-                                self.image_channels), dtype=np.float32)
+                                 self.image_channels), dtype=np.float32)
         test_images = np.empty((tasks_per_batch, way, eval_samples, self.image_height, self.image_width,
                                 self.image_channels), dtype=np.float32)
         train_labels = np.empty((tasks_per_batch, way, shot), dtype=np.int32)
@@ -152,6 +152,8 @@ class MiniImageNetData(object):
             images = self.validation_set
         elif source == 'test':
             images = self.test_set
+        else:
+            raise ValueError(f"Unexpected source {source} - choose one of 'train', 'validation', or 'test'")
 
         train_images, test_images, train_labels, test_labels = self._sample_batch(images, tasks_per_batch, shot, way,
                                                                                   eval_samples)

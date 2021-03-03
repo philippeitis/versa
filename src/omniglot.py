@@ -22,7 +22,7 @@ def extract_data(data, augment_data):
         for m, instance in enumerate(character):
             images.append(instance[0])
             char_nums.append(character_index)
-    images = np.expand_dims(np.array(images), 4)
+    images = np.expand_dims(np.array(images), -1)
     char_number = np.array(char_nums)
     return images, char_number
 
@@ -47,6 +47,7 @@ class OmniglotData(object):
         Class to handle Omniglot data set. Loads from numpy data as saved in
         data folder.
     """
+
     def __init__(self, path, train_size, validation_size, augment_data, seed):
         """
         Initialize object to handle Omniglot data
@@ -58,7 +59,7 @@ class OmniglotData(object):
         """
         np.random.seed(seed)
 
-        data = np.load(path)
+        data = np.load(path, allow_pickle=True)
         np.random.shuffle(data)
 
         self.instances_per_char = 20
@@ -69,9 +70,9 @@ class OmniglotData(object):
 
         self.train_images, self.train_char_nums = extract_data(data[:train_size], augment_data=augment_data)
         if validation_size is not 0:
-            self.validation_images, self.validation_char_nums =\
+            self.validation_images, self.validation_char_nums = \
                 extract_data(data[train_size:train_size + validation_size], augment_data=augment_data)
-        self.test_images, self.test_char_nums =\
+        self.test_images, self.test_char_nums = \
             extract_data(data[train_size + validation_size:], augment_data=augment_data)
 
     def get_image_height(self):
@@ -94,12 +95,14 @@ class OmniglotData(object):
         :return: np array representing a batch of tasks.
         """
         if source == 'train':
-            return self._yield_random_task_batch(tasks_per_batch, self.train_images, self.train_char_nums, shot, way, eval_samples)
+            return self._yield_random_task_batch(tasks_per_batch, self.train_images, self.train_char_nums, shot, way,
+                                                 eval_samples)
         elif source == 'validation':
             return self._yield_random_task_batch(tasks_per_batch, self.validation_images, self.validation_char_nums,
-                                                  shot, way, eval_samples)
+                                                 shot, way, eval_samples)
         elif source == 'test':
-            return self._yield_random_task_batch(tasks_per_batch, self.test_images, self.test_char_nums, shot, way, eval_samples)
+            return self._yield_random_task_batch(tasks_per_batch, self.test_images, self.test_char_nums, shot, way,
+                                                 eval_samples)
 
     def _yield_random_task_batch(self, tasks_per_batch, images, character_indices, shot, way, eval_samples):
         """
@@ -121,7 +124,7 @@ class OmniglotData(object):
             test_images_to_return.append(im_test)
             train_labels_to_return.append(lbl_train)
             test_labels_to_return.append(lbl_test)
-        return np.array(train_images_to_return), np.array(test_images_to_return),\
+        return np.array(train_images_to_return), np.array(test_images_to_return), \
                np.array(train_labels_to_return), np.array(test_labels_to_return)
 
     def _generate_random_task(self, images, character_indices, shot, way, eval_samples):

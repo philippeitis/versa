@@ -1,6 +1,9 @@
 Meta-Learning Probabilistic Inference For Prediction
 ====================================================
 
+This repository is effectively identical to https://github.com/Gordonjo/versa, except that it supports TensorFlow v2.0+ directly,
+and only supports Python 3+.
+
 This repository implements the models and algorithms necessary to reproduce the experiments carried out in the paper
 `Meta-Learning Probabilistic Inference For Prediction, Gordon and Bronskill et al. <https://arxiv.org/abs/1805.09921>`_
 It includes code for running few-shot classification experiments with Omniglot and miniImageNet, as well as for reproducing
@@ -21,8 +24,8 @@ Dependencies
 ------------
 This code requires the following:
 
-* python 2 or python 3
-* TensorFlow v1.0+
+* Python 3
+* TensorFlow v2.0+
 
 Data
 ----
