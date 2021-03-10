@@ -28,7 +28,7 @@ def convert_index_to_angle(index, num_instances_per_item):
     return angle, np.sin(angle_radians), np.cos(angle_radians)
 
 
-class ShapeNetData(object):
+class ShapeNetData:
     """
         Class to handle ShapeNet dataset. Loads from numpy data as saved in data folder.
     """
@@ -52,9 +52,11 @@ class ShapeNetData(object):
         # concatenate all the categories
         categories = ['02691156', '02828884', '02933112', '02958343', '02992529', '03001627', '03211117',
                       '03636649', '03691459', '04256520', '04379243', '04530566']
+
+        data = None
         for category in categories:
             file = os.path.join(path, '{0:s}.npy'.format(category))
-            if category == categories[0]:  # first time through
+            if data is None:  # first time through
                 data = np.load(file)
             else:
                 data = np.concatenate((data, np.load(file)), axis=0)
@@ -62,8 +64,8 @@ class ShapeNetData(object):
         self.instances_per_item = num_instances_per_item
         self.total_items = data.shape[0]
         self.mode = mode
-        train_size = (int)(train_fraction * self.total_items)
-        val_size = (int)(val_fraction * self.total_items)
+        train_size = int(train_fraction * self.total_items)
+        val_size = int(val_fraction * self.total_items)
         print("Training Set Size = {0:d}".format(train_size))
         print("Validation Set Size = {0:d}".format(val_size))
         print("Test Set Size = {0:d}".format(self.total_items - train_size - val_size))

@@ -23,8 +23,7 @@ def onehottify_2d_array(a):
     return out
 
 
-class MiniImageNetData(object):
-
+class MiniImageNetData:
     def __init__(self, path, seed):
         """
         Constructs a miniImageNet dataset for use in episodic training.

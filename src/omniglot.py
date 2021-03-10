@@ -42,7 +42,7 @@ def augment_character_set(data, character_set):
     return np.vstack((data, np.array([rotation_90, rotation_180, rotation_270])))
 
 
-class OmniglotData(object):
+class OmniglotData:
     """
         Class to handle Omniglot data set. Loads from numpy data as saved in
         data folder.
@@ -69,7 +69,7 @@ class OmniglotData(object):
         self.total_chars = data.shape[0]
 
         self.train_images, self.train_char_nums = extract_data(data[:train_size], augment_data=augment_data)
-        if validation_size is not 0:
+        if validation_size != 0:
             self.validation_images, self.validation_char_nums = \
                 extract_data(data[train_size:train_size + validation_size], augment_data=augment_data)
         self.test_images, self.test_char_nums = \
@@ -95,16 +95,23 @@ class OmniglotData(object):
         :return: np array representing a batch of tasks.
         """
         if source == 'train':
-            return self._yield_random_task_batch(tasks_per_batch, self.train_images, self.train_char_nums, shot, way,
-                                                 eval_samples)
+            source_imgs = self.train_images
+            num_chars = self.train_char_nums
         elif source == 'validation':
-            return self._yield_random_task_batch(tasks_per_batch, self.validation_images, self.validation_char_nums,
-                                                 shot, way, eval_samples)
+            source_imgs = self.validation_images
+            num_chars = self.validation_char_nums
         elif source == 'test':
-            return self._yield_random_task_batch(tasks_per_batch, self.test_images, self.test_char_nums, shot, way,
-                                                 eval_samples)
+            source_imgs = self.test_images
+            num_chars = self.test_char_nums
+        else:
+            raise RuntimeError(f"Invalid source {source}")
+        return self._yield_random_task_batch(
+            tasks_per_batch, source_imgs, num_chars, shot, way,
+            eval_samples
+        )
 
-    def _yield_random_task_batch(self, tasks_per_batch, images, character_indices, shot, way, eval_samples):
+    @classmethod
+    def _yield_random_task_batch(cls, tasks_per_batch, images, character_indices, shot, way, eval_samples):
         """
         Generate a batch of tasks from image set.
         :param tasks_per_batch: Number of tasks per batch.
@@ -118,8 +125,8 @@ class OmniglotData(object):
         train_images_to_return, test_images_to_return = [], []
         train_labels_to_return, test_labels_to_return = [], []
         for task in range(tasks_per_batch):
-            im_train, im_test, lbl_train, lbl_test = self._generate_random_task(images, character_indices, shot, way,
-                                                                                eval_samples)
+            im_train, im_test, lbl_train, lbl_test = cls._generate_random_task(images, character_indices, shot, way,
+                                                                               eval_samples)
             train_images_to_return.append(im_train)
             test_images_to_return.append(im_test)
             train_labels_to_return.append(lbl_train)
@@ -127,27 +134,37 @@ class OmniglotData(object):
         return np.array(train_images_to_return), np.array(test_images_to_return), \
                np.array(train_labels_to_return), np.array(test_labels_to_return)
 
-    def _generate_random_task(self, images, character_indices, shot, way, eval_samples):
+    @classmethod
+    def _generate_random_task(cls, images, character_indices, shot, way, eval_samples):
         """
         Randomly generate a task from image set.
-        :param images: images set to generate batch from.
-        :param character_indices: indices of each character.
-        :param shot: number of training images per class.
-        :param way: number of classes per task.
-        :param eval_samples: number of evaluation samples to use.
-        :return: tuple containing train and test images and labels for a task.
+
+        :param images:              images set to generate batch from.
+        :param character_indices:   indices of each character.
+        :param shot:                number of training images per class.
+        :param way:                 number of classes per task.
+        :param eval_samples:        number of evaluation samples to use.
+
+        :return:                    tuple containing train and test images and labels for a task.
         """
         num_test_instances = eval_samples
         train_images_list, test_images_list = [], []
         task_characters = np.random.choice(np.unique(character_indices), way)
+
         for character in task_characters:
+            # Choose image with same character as label
             character_images = images[np.where(character_indices == character)[0]]
             np.random.shuffle(character_images)
+
             train_images_list.append(character_images[:shot])
             test_images_list.append(character_images[shot:shot + eval_samples])
+
         train_images_to_return, test_images_to_return = np.vstack(train_images_list), np.vstack(test_images_list)
+
         train_labels_to_return = np.eye(way).repeat(shot, 0)
         test_labels_to_return = np.eye(way).repeat(num_test_instances, 0)
+
         train_images_to_return, train_labels_to_return = shuffle_batch(train_images_to_return, train_labels_to_return)
         test_images_to_return, test_labels_to_return = shuffle_batch(test_images_to_return, test_labels_to_return)
+        # Return images and labels
         return train_images_to_return, test_images_to_return, train_labels_to_return, test_labels_to_return
