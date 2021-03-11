@@ -135,34 +135,39 @@ class OmniglotData:
                np.array(train_labels_to_return), np.array(test_labels_to_return)
 
     @classmethod
-    def _generate_random_task(cls, images, character_indices, shot, way, eval_samples):
+    def _generate_random_task(cls, images, class_indices, shot, way, eval_samples):
         """
         Randomly generate a task from image set.
 
         :param images:              images set to generate batch from.
-        :param character_indices:   indices of each character.
+        :param class_indices:       indices of each class (or, each character).
         :param shot:                number of training images per class.
         :param way:                 number of classes per task.
         :param eval_samples:        number of evaluation samples to use.
 
         :return:                    tuple containing train and test images and labels for a task.
         """
-        num_test_instances = eval_samples
-        train_images_list, test_images_list = [], []
-        task_characters = np.random.choice(np.unique(character_indices), way)
+        train_images, test_images = [], []
+        # choose `way` classes to include in training set.
+        classes = np.random.choice(np.unique(class_indices), way)
 
-        for character in task_characters:
-            # Choose image with same character as label
-            character_images = images[np.where(character_indices == character)[0]]
-            np.random.shuffle(character_images)
+        for class_ in classes:
+            # Find images with chosen class
+            class_images = images[np.where(class_indices == class_)[0]]
+            # Choose random selection of images from class.
+            np.random.shuffle(class_images)
 
-            train_images_list.append(character_images[:shot])
-            test_images_list.append(character_images[shot:shot + eval_samples])
+            # Choose `shot` training images for this class
+            train_images.append(class_images[:shot])
+            # Choose `eval_samples` test images.
+            test_images.append(class_images[shot:shot + eval_samples])
 
-        train_images_to_return, test_images_to_return = np.vstack(train_images_list), np.vstack(test_images_list)
+        # Stack images
+        train_images_to_return = np.vstack(train_images)
+        test_images_to_return = np.vstack(test_images)
 
         train_labels_to_return = np.eye(way).repeat(shot, 0)
-        test_labels_to_return = np.eye(way).repeat(num_test_instances, 0)
+        test_labels_to_return = np.eye(way).repeat(eval_samples, 0)
 
         train_images_to_return, train_labels_to_return = shuffle_batch(train_images_to_return, train_labels_to_return)
         test_images_to_return, test_labels_to_return = shuffle_batch(test_images_to_return, test_labels_to_return)
