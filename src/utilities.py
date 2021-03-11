@@ -23,7 +23,7 @@ def sample_normal(mu, log_variance, num_samples):
     :return: tf tensor - samples from distribution of size num_samples x dim(mu).
     """
     shape = tf.concat([tf.constant([num_samples]), tf.shape(mu)], axis=-1)
-    eps = tf.compat.v1.random_normal(shape, dtype=tf.float32)
+    eps = tf.random.normal(shape, dtype=tf.float32)
     return mu + eps * tf.sqrt(tf.exp(log_variance))
 
 
@@ -91,7 +91,7 @@ def conv2d_pool_block(inputs, use_batch_norm, dropout_keep_prob, pool_padding, n
 
     h = tf.nn.relu(features=h, name=(name + '_batch_relu'))
 
-    h = tf.compat.v1.nn.dropout(x=h, keep_prob=dropout_keep_prob, name=(name + '_dropout'))
+    h = tf.nn.dropout(x=h, rate=1-dropout_keep_prob, name=(name + '_dropout'))
 
     h = tf.compat.v1.layers.max_pooling2d(inputs=h, pool_size=[2, 2], strides=2, padding=pool_padding,
                                           name=(name + '_pool'))
