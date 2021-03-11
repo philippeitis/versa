@@ -60,7 +60,7 @@ def extract_features_mini_imagenet(images, output_size, use_batch_norm, rate):
     :param images: batch of images.
     :param output_size: dimensionality of the output features.
     :param use_batch_norm: whether to use batch normalization or not.
-    :param dropout_keep_prob: keep probability parameter for dropout.
+    :param rate: drop probability parameter for dropout.
     :return: features.
     """
 
