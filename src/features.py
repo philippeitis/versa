@@ -29,7 +29,7 @@ def extract_features_shapenet(images, output_size, use_batch_norm, dropout_keep_
     return h
 
 
-def extract_features_omniglot(images, output_size, use_batch_norm, dropout_keep_prob):
+def extract_features_omniglot(images, output_size, use_batch_norm, rate):
     """
     Based on the architecture described in 'Matching Networks for One-Shot Learning'
     http://arxiv.org/abs/1606.04080.pdf.
@@ -37,15 +37,14 @@ def extract_features_omniglot(images, output_size, use_batch_norm, dropout_keep_
     :param images: batch of images.
     :param output_size: dimensionality of the output features.
     :param use_batch_norm: whether to use batch normalization or not.
-    :param dropout_keep_prob: keep probability parameter for dropout.
+    :param rate: drop probability parameter for dropout.
     :return: features.
     """
-
     # 4X conv2d + pool blocks
-    h = conv2d_pool_block(images, use_batch_norm, dropout_keep_prob, 'same', 'fe_block_1')
-    h = conv2d_pool_block(h, use_batch_norm, dropout_keep_prob, 'same', 'fe_block_2')
-    h = conv2d_pool_block(h, use_batch_norm, dropout_keep_prob, 'same', 'fe_block_3')
-    h = conv2d_pool_block(h, use_batch_norm, dropout_keep_prob, 'same', 'fe_block_4')
+    h = conv2d_pool_block(images, use_batch_norm, rate, 'same', 'fe_block_1')
+    h = conv2d_pool_block(h, use_batch_norm, rate, 'same', 'fe_block_2')
+    h = conv2d_pool_block(h, use_batch_norm, rate, 'same', 'fe_block_3')
+    h = conv2d_pool_block(h, use_batch_norm, rate, 'same', 'fe_block_4')
 
     # flatten output
     h = tf.compat.v1.layers.flatten(h)
@@ -53,7 +52,7 @@ def extract_features_omniglot(images, output_size, use_batch_norm, dropout_keep_
     return h
 
 
-def extract_features_mini_imagenet(images, output_size, use_batch_norm, dropout_keep_prob):
+def extract_features_mini_imagenet(images, output_size, use_batch_norm, rate):
     """
     Based on the architecture described in 'Matching Networks for One-Shot Learning'
     http://arxiv.org/abs/1606.04080.pdf.
@@ -66,11 +65,11 @@ def extract_features_mini_imagenet(images, output_size, use_batch_norm, dropout_
     """
 
     # 5X conv2d + pool blocks
-    h = conv2d_pool_block(images, use_batch_norm, dropout_keep_prob, 'valid', 'fe_block_1')
-    h = conv2d_pool_block(h, use_batch_norm, dropout_keep_prob, 'valid', 'fe_block_2')
-    h = conv2d_pool_block(h, use_batch_norm, dropout_keep_prob, 'valid', 'fe_block_3')
-    h = conv2d_pool_block(h, use_batch_norm, dropout_keep_prob, 'valid', 'fe_block_4')
-    h = conv2d_pool_block(h, use_batch_norm, dropout_keep_prob, 'valid', 'fe_block_5')
+    h = conv2d_pool_block(images, use_batch_norm, rate, 'valid', 'fe_block_1')
+    h = conv2d_pool_block(h, use_batch_norm, rate, 'valid', 'fe_block_2')
+    h = conv2d_pool_block(h, use_batch_norm, rate, 'valid', 'fe_block_3')
+    h = conv2d_pool_block(h, use_batch_norm, rate, 'valid', 'fe_block_4')
+    h = conv2d_pool_block(h, use_batch_norm, rate, 'valid', 'fe_block_5')
 
     # flatten output
     h = tf.compat.v1.layers.flatten(h)

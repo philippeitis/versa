@@ -120,32 +120,35 @@ def main(_unused_argv):
     test_args_per_batch = 1  # always use a batch size of 1 for testing
 
     # tf placeholders
-    train_images = tf.compat.v1.placeholder(
-        tf.float32,
+    train_images = tf.keras.Input(
+        [None, data.get_image_height(), data.get_image_width(), data.get_image_channels()],
+        dtype=tf.float32,
         # tasks per batch, shot, dimensions
-        [None, None, data.get_image_height(), data.get_image_width(), data.get_image_channels()],
         name='train_images'
     )
-    test_images = tf.compat.v1.placeholder(
-        tf.float32,
+    test_images = tf.keras.Input(
         # tasks per batch, num test images, dimensions
-        [None, None, data.get_image_height(), data.get_image_width(), data.get_image_channels()],
+        [None, data.get_image_height(), data.get_image_width(), data.get_image_channels()],
+        dtype=tf.float32,
         name='test_images'
     )
-    train_labels = tf.compat.v1.placeholder(
-        tf.float32,
+    train_labels = tf.keras.Input(
         # tasks per batch, shot, way
-        [None, None, args.way],
+        [None, args.way],
+        dtype=tf.float32,
+
         name='train_labels'
     )
-    test_labels = tf.compat.v1.placeholder(
-        tf.float32,
+    test_labels = tf.keras.Input(
         # tasks per batch, num test images
-        [None, None, args.way],
+        [None, args.way],
+        dtype=tf.float32,
         name='test_labels'
     )
-    dropout_keep_prob = tf.compat.v1.placeholder(
-        tf.float32, [], name='dropout_keep_prob'
+    dropout_rate = tf.compat.v1.placeholder(
+        tf.float32,
+        [],
+        name='dropout_rate'
     )
     L = tf.constant(args.samples, dtype=tf.float32, name="num_samples")
 
@@ -158,13 +161,13 @@ def main(_unused_argv):
                 images=train_inputs,
                 output_size=args.d_theta,
                 use_batch_norm=True,
-                dropout_keep_prob=dropout_keep_prob
+                rate=dropout_rate
             )
             features_test = feature_extractor_fn(
                 images=test_inputs,
                 output_size=args.d_theta,
                 use_batch_norm=True,
-                dropout_keep_prob=dropout_keep_prob
+                rate=dropout_rate
             )
         # Infer classification layer from q
         with tf.compat.v1.variable_scope('classifier'):
@@ -226,7 +229,7 @@ def main(_unused_argv):
                 test_images: test_inputs,
                 train_labels: train_outputs,
                 test_labels: test_outputs,
-                dropout_keep_prob: args.dropout if mode == "train" else 1.0
+                dropout_rate: 1. - args.dropout if mode == "train" else 0.
             }
             if mode == "train":
                 _, iter_loss, iter_acc = sess.run([train_step, loss, accuracy], feed_dict)
