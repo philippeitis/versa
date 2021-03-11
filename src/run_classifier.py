@@ -121,26 +121,26 @@ def main(_unused_argv):
 
     # tf placeholders
     train_images = tf.keras.Input(
+        # shot, *dimensions
         [None, data.get_image_height(), data.get_image_width(), data.get_image_channels()],
         dtype=tf.float32,
-        # tasks per batch, shot, dimensions
         name='train_images'
     )
     test_images = tf.keras.Input(
-        # tasks per batch, num test images, dimensions
+        # num test images, *dimensions
         [None, data.get_image_height(), data.get_image_width(), data.get_image_channels()],
         dtype=tf.float32,
         name='test_images'
     )
     train_labels = tf.keras.Input(
-        # tasks per batch, shot, way
+        # shot, way
         [None, args.way],
         dtype=tf.float32,
 
         name='train_labels'
     )
     test_labels = tf.keras.Input(
-        # tasks per batch, num test images
+        # num test images, way
         [None, args.way],
         dtype=tf.float32,
         name='test_labels'
@@ -295,8 +295,7 @@ def main(_unused_argv):
 
             # test the model on the best validation checkpoint so far
             test_model(checkpoint_path_validation)
-
-        if args.mode == 'test':
+        elif args.mode == 'test':
             test_model(args.test_model_path)
 
     logfile.close()
