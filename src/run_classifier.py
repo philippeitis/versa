@@ -215,15 +215,13 @@ def main(_unused_argv):
 
     def run_batches(num_iters, mode="test"):
         outputs = []
+        if mode == "test":
+            batch_args = [mode, test_args_per_batch, args.test_shot, args.test_way, eval_samples_test]
+        else:
+            batch_args = [mode, args.tasks_per_batch, args.shot, args.way, eval_samples_train]
         for _ in range(num_iters):
             train_inputs, test_inputs, train_outputs, test_outputs = \
-                data.get_batch(
-                    mode,
-                    test_args_per_batch,
-                    args.test_shot,
-                    args.test_way,
-                    eval_samples_test
-                )
+                data.get_batch(*batch_args)
             feed_dict = {
                 train_images: train_inputs,
                 test_images: test_inputs,
